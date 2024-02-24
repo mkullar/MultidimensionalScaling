@@ -1,0 +1,1228 @@
+---
+title: "MDS Emotion and Mood"
+author: "Monica Kullar"
+date: "2/23/2024"
+output: html_document
+---
+##################################################
+##                  DEMOGRAPHICS                ##
+##################################################
+
+#assess risk for groupings
+```{r}
+library(reshape)
+library(tidyverse)
+library(dplyr)
+
+myriad <- read.csv(file = "~/Desktop/Projects/Data/Myriad1B/Myriad1b_AgeGender.csv", sep=',', na.strings=c(""), header = T, stringsAsFactors = FALSE, colClasses = "character")
+sapply(myriad, class)
+myriad <- as.data.frame(myriad)
+myriad$PtcptID <- as.factor(myriad$PtcptID)
+myriad$Age <- as.numeric(myriad$Age)
+myriad$Gender <- as.numeric(myriad$Gender)
+
+#qualtrics data
+myriadAgeDOBSex <- read.csv(file = "~/Desktop/Projects/Data/Myriad1B/myriadDOB_Sex.csv", sep=',', na.strings=c(""), header = T, stringsAsFactors = FALSE, colClasses = "character")
+shortdemvars <- c("PtcptID", "Age", "Gender")
+myriad <- myriad[shortdemvars]
+myriad <- na.omit(myriad)
+rownames(myriad) <- 1:nrow(myriad)
+myriad$PtcptID <- as.numeric(myriad$PtcptID)
+#remove participants who did not complete SPAM tasks
+myriad<-myriad[!(myriad$PtcptID==54),]
+myriad<-myriad[!(myriad$PtcptID==60),]
+myriad<-myriad[!(myriad$PtcptID==76),]
+rownames(myriad) <- 1:nrow(myriad)
+
+## CHECKING CES-D, DEPRESSION RISK
+cesD <- read.csv(file = "~/Desktop/Projects/Data/Myriad1B/CESD.csv", sep=',', na.strings=c(""), header = T, stringsAsFactors = FALSE, colClasses = "character")
+cesD <- cbind(cesD[,1], cesD[ , grepl( "CES" , names(cesD)) ])
+cesD <- cesD %>% 
+  rename_with(.cols = 1, ~"PtcptID")
+cesD$PtcptID <- as.numeric(cesD$PtcptID)
+#missing IDs 46 & 53 & 75 from this datasheet...all else present. Merge in to add 46/53 into the CES-D data using their myriadQualtrics CES-D data
+cesD465375 <- read.csv(file = "~/Desktop/Projects/Data/Myriad1B/myriadQualtrics_rawCESD.csv", sep=',', na.strings=c(""), header = T, stringsAsFactors = FALSE, colClasses = "character")
+cesD465375 <- cesD465375[-(1:2),]
+rownames(cesD465375) <- 1:nrow(cesD465375)
+cesD465375 <- cesD465375 %>% filter(PtcptID == "46" |PtcptID ==  "53"|PtcptID ==  "75")
+cesD465375 <- cbind(cesD465375[,20], cesD465375[ , grepl( "CES" , names(cesD465375)) ])
+cesD465375 <- cesD465375 %>% 
+  rename_with(.cols = 1, ~"PtcptID")
+cesD465375$PtcptID <- as.numeric(cesD465375$PtcptID)
+#make CES-D numeric for scoring
+cesD465375$CESD_1 <- as.numeric(cesD465375$CESD_1)
+cesD465375$CESD_2 <- as.numeric(cesD465375$CESD_2)
+cesD465375$CESD_3 <- as.numeric(cesD465375$CESD_3)
+cesD465375$CESD_4 <- as.numeric(cesD465375$CESD_4)
+cesD465375$CESD_5 <- as.numeric(cesD465375$CESD_5)
+cesD465375$CESD_6 <- as.numeric(cesD465375$CESD_6)
+cesD465375$CESD_7 <- as.numeric(cesD465375$CESD_7)
+cesD465375$CESD_8 <- as.numeric(cesD465375$CESD_8)
+cesD465375$CESD_9 <- as.numeric(cesD465375$CESD_9)
+cesD465375$CESD_10 <- as.numeric(cesD465375$CESD_10)
+cesD465375$CESD_11 <- as.numeric(cesD465375$CESD_11)
+cesD465375$CESD_12 <- as.numeric(cesD465375$CESD_12)
+cesD465375$CESD_13 <- as.numeric(cesD465375$CESD_13)
+cesD465375$CESD_14 <- as.numeric(cesD465375$CESD_14)
+cesD465375$CESD_15 <- as.numeric(cesD465375$CESD_15)
+cesD465375$CESD_16 <- as.numeric(cesD465375$CESD_16)
+cesD465375$CESD_17 <- as.numeric(cesD465375$CESD_17)
+cesD465375$CESD_18 <- as.numeric(cesD465375$CESD_18)
+cesD465375$CESD_19 <- as.numeric(cesD465375$CESD_19)
+cesD465375$CESD_20 <- as.numeric(cesD465375$CESD_20)
+cesD465375 <- na.omit(cesD465375)
+#calculate total given raw non-reversed scores at 4,8,12,16
+#row 1 (53 t1) = 19
+#row 2 (46) = 11
+cesD465375$CESD_TOTAL <- c(2, 19, 11)
+#merge full available cesD dataset together
+cesD <- rbind(cesD, cesD465375)
+rownames(cesD) <- 1:nrow(cesD)
+#merge demographics info to cesD info for participants present for MoodSPAM
+cesDmyriad <- merge(myriad, cesD, by = "PtcptID")
+rownames(cesDmyriad) <- 1:nrow(cesDmyriad)
+#make cesD final scores all numeric, and participantID factor
+cesDmyriad$PtcptID <- as.factor(cesDmyriad$PtcptID)
+cesDmyriad$CESD_1 <- as.numeric(cesDmyriad$CESD_1)
+cesDmyriad$CESD_2 <- as.numeric(cesDmyriad$CESD_2)
+cesDmyriad$CESD_3 <- as.numeric(cesDmyriad$CESD_3)
+cesDmyriad$CESD_4 <- as.numeric(cesDmyriad$CESD_4)
+cesDmyriad$CESD_5 <- as.numeric(cesDmyriad$CESD_5)
+cesDmyriad$CESD_6 <- as.numeric(cesDmyriad$CESD_6)
+cesDmyriad$CESD_7 <- as.numeric(cesDmyriad$CESD_7)
+cesDmyriad$CESD_8 <- as.numeric(cesDmyriad$CESD_8)
+cesDmyriad$CESD_9 <- as.numeric(cesDmyriad$CESD_9)
+cesDmyriad$CESD_10 <- as.numeric(cesDmyriad$CESD_10)
+cesDmyriad$CESD_11 <- as.numeric(cesDmyriad$CESD_11)
+cesDmyriad$CESD_12 <- as.numeric(cesDmyriad$CESD_12)
+cesDmyriad$CESD_13 <- as.numeric(cesDmyriad$CESD_13)
+cesDmyriad$CESD_14 <- as.numeric(cesDmyriad$CESD_14)
+cesDmyriad$CESD_15 <- as.numeric(cesDmyriad$CESD_15)
+cesDmyriad$CESD_16 <- as.numeric(cesDmyriad$CESD_16)
+cesDmyriad$CESD_17 <- as.numeric(cesDmyriad$CESD_17)
+cesDmyriad$CESD_18 <- as.numeric(cesDmyriad$CESD_18)
+cesDmyriad$CESD_19 <- as.numeric(cesDmyriad$CESD_19)
+cesDmyriad$CESD_20 <- as.numeric(cesDmyriad$CESD_20)
+
+test0 <- melt(cesDmyriad[c("PtcptID", "CESD_TOTAL")], id= "PtcptID")
+test0$value <- as.numeric(test0$value)
+test0$PtcptID <- as.factor(test0$PtcptID)
+ggplot(test0, aes(x=variable, y=value)) + geom_point() + theme_classic() + geom_hline(yintercept=16, col="red") + ggtitle("CES-D from Spreadsheet")
+
+ggplot(test0, aes(x=value)) + geom_histogram(aes(fill = value < 16)) + theme_classic() +
+  scale_fill_manual(values = c("coral", "light green")) + ggtitle("Depression Risk via CES-D")
+
+#CHECK DEMOGRAPHICS OF CES-D GROUPS
+# N=69
+myriad$PtcptID <- as.factor(myriad$PtcptID)
+test0$PtcptID <- as.factor(test0$PtcptID)
+test0dem <- merge(test0, myriad, by = "PtcptID")
+
+#Add a group column for low/at risk
+test0dem$Group <- with(test0dem, ifelse(value<16, "Low Risk", "At Risk"))
+sapply(test0dem, class)
+test0dem$Group <- as.factor(test0dem$Group)
+```
+
+##################################################
+##                ALL EMOTION TERMS             ##
+##################################################
+
+#data setup
+```{r}
+library(tidyverse)
+
+distance <- read.table("~/Data/spam_emotion_merge.txt", sep = "\t", header = TRUE) #must delete first line of C: saving location in txt file
+short <- c("Subject", "Comp1", "Comp2", "Distance")
+distance <- distance[short]
+distance <- na.omit(distance)
+distance$Subject <- as.factor(distance$Subject)
+distance$Comp1 <- as.factor(distance$Comp1)
+distance$Comp2 <- as.factor(distance$Comp2)
+
+levels(distance$Comp2)
+posSPAMmood <- c("CALM", "CAREFREE", "CHEERFUL", "COMPOSED", "CONTENT", "EXCITED", "HAPPY", "JOYFUL", "LIVELY", "MANIC", "OPTIMISTIC", "PASSIONATE", "RELAXED", "SATISFIED", "SERENE")
+negSPAMmood <- c("ANXIOUS", "BITTER", "BORED",  "DEPRESSED", "DESPERATE", "FED UP", "GLOOMY", "GUILTY", "IRRITABLE", "MISERABLE", "PANICKY", "PESSIMISTIC", "SAD", "STRESSED", "TENSE", "UNEASY")
+
+distance <- distance %>% 
+  rename_with(.cols = 1, ~"PtcptID")
+
+distancetest <- merge(distance, test0dem[,c(1,6)], by= "PtcptID")
+distancetest$termpairs <- paste(distancetest$Comp1, distancetest$Comp2, sep= "-")
+```
+
+# Loops for individual matrices, individual configuration plots
+```{r}
+library(data.table)
+library(dplyr)
+library(reshape2)
+library(smacof)
+library(magrittr)
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+library(ggrepel)
+
+rownames(distancetest) <- 1:nrow(distancetest)
+
+# INDIVIDUAL MATRIX CREATION LOOP
+for(i in levels(test0dem$PtcptID)) {
+    #single out an individual participant
+    matrixloop1 <- distancetest[distancetest$PtcptID == i,]
+    an <- with(matrixloop1[,2:4], sort(unique(c(as.character(Comp1), as.character(Comp2)))))
+    SpamMatrixtemp <- array(0, c(length(an), length(an)), list(an, an))
+    a <- match(matrixloop1[,2:4]$Comp1, an)
+    b <- match(matrixloop1[,2:4]$Comp2, an)
+    SpamMatrixtemp[cbind(a,b)] <- SpamMatrixtemp[cbind(b,a)] <- matrixloop1[,2:4]$Distance
+    #save all files in Imp folder for use at individual level
+    savefile <- paste0 ("~/Desktop/Projects/Data/Myriad1B/indivmatricesEMO/", i, ".csv", sep = "")
+    write.csv(SpamMatrixtemp, file = savefile, row.names = TRUE)
+    #print output into console to see status
+    print(paste("Dataframe Saved:", i))
+    #save outputs to location with unique name match.
+}
+
+# INDIVIDUAL GGSCATTER CONFIGURATION PLOT CREATION LOOP
+for(i in levels(test0dem$PtcptID)) {
+    #single out an individual participant
+    matrixloop1 <- distancetest[distancetest$PtcptID == i,]
+    an <- with(matrixloop1[,2:4], sort(unique(c(as.character(Comp1), as.character(Comp2)))))
+    SpamMatrixtemp <- array(0, c(length(an), length(an)), list(an, an))
+    a <- match(matrixloop1[,2:4]$Comp1, an)
+    b <- match(matrixloop1[,2:4]$Comp2, an)
+    SpamMatrixtemp[cbind(a,b)] <- SpamMatrixtemp[cbind(b,a)] <- matrixloop1[,2:4]$Distance
+    #create their mds plot
+    spam_mdstemp <-  mds(delta = SpamMatrixtemp, ndim = 2, type = "ordinal")
+  #simple clean readable config plot
+  plottemp <- ggplot() + geom_point(data = as.data.frame(spam_mdstemp$conf), 
+                      mapping = aes(x = D1 , y = D2), 
+                      alpha = 0.5 , color = "blue", size = 3) + 
+  geom_text_repel(data = as.data.frame(spam_mdstemp$conf), 
+            mapping = aes(x = D1,y= D2), 
+            label = rownames(SpamMatrixtemp)) + 
+  labs(title = "MDS representation of Emotion") + xlab("Dimension 1") + ylab ("Dimension 2") +
+  theme_classic()
+
+    #save all files in Imp folder for use at individual level
+    savefile <- paste0 (i, ".jpg", sep = "")
+    ggsave(file=savefile, plot=plottemp, path = "~/Desktop/Projects/Data/Myriad1B/indivmatricesEMO/indivconfigplotsEMO/")
+    #print output into console to see status
+    print(paste("Dataframe Saved:", i))
+    #save outputs to location with unique name match.
+}
+```
+
+# Average Low and At Risk Group analysis of matrices (averaging matrices, stress, plots, variance diff)
+```{r}
+library(data.table)
+library(dplyr)
+library(reshape2)
+library(smacof)
+library(magrittr)
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+library(ggrepel)
+library(stats)
+
+#Average matrices for low and at risk groups by SUBFOLDER OF PRESORTED GROUPS.
+    ## LOW RISK ##
+#pull all the csv files from the subfolder
+filenamesLR <- list.files(path ="~/Desktop/Projects/Data/Myriad1B/indivmatricesEMO/lowrisk", pattern="*.csv", full.names=TRUE)
+#read them in as csv, then as matrices which is what i want
+ldfLR <- lapply(filenamesLR, read.csv)
+
+resLR <- lapply(ldfLR, as.matrix)
+
+#make each one have their mood terms as row names via lapply.
+resLR <- lapply(ldfLR, function(df) {
+    #new df without rowname col
+    df_out <- df[,-1]
+    #set rownames as first col from input df
+    rownames(df_out) <- df[[1]]
+    df_out
+})
+#matrix average LOW RISK
+AvgMatrixLoRisk <- Reduce(`+`, resLR)/length(resLR)
+
+    ## AT RISK ##
+filenamesHR <- list.files(path ="~/Desktop/Projects/Data/Myriad1B/indivmatricesEMO/atrisk", pattern="*.csv", full.names=TRUE)
+ldfHR <- lapply(filenamesHR, read.csv)
+resHR <- lapply(ldfHR, as.matrix)
+#make each one have their mood terms as row names via lapply.
+resHR <- lapply(ldfHR, function(df) {
+    #new df without rowname col
+    df_out <- df[,-1]
+    #set rownames as first col from input df
+    rownames(df_out) <- df[[1]]
+    df_out
+})
+#matrix average AT RISK
+AvgMatrixHiRisk <- Reduce(`+`, resHR)/length(resHR)
+
+#Assess group matrices 
+#analyze configuration plots, stress values, normalized stress, and k-means clustering of outputs.
+
+#Low Risk
+spam_mdsLR <-  mds(delta = AvgMatrixLoRisk, ndim = 2, type = "ordinal" )
+spam_mdsLR
+spam_mdsLR$stress #the stress value = .04 GOOD
+dhat_matrix <-  as.matrix(spam_mdsLR$dhat)
+d_matrix <-  as.matrix(spam_mdsLR$confdist)
+denominator <-  sum(dhat_matrix[upper.tri(dhat_matrix)]^2)
+p_ij <-  dhat_matrix[upper.tri(dhat_matrix)]
+d_ij <-  d_matrix[upper.tri(d_matrix)]
+nominator <-  sum((p_ij - d_ij)^2) 
+normalized_stressLR  <-  nominator/denominator
+normalized_stressLR #the normalized stress value = .002
+
+#At Risk
+spam_mdsHR <-  mds(delta = AvgMatrixHiRisk, ndim = 2, type = "ordinal" )
+spam_mdsHR
+spam_mdsHR$stress #the stress value = .05 GOOD
+dhat_matrix <-  as.matrix(spam_mdsHR$dhat)
+d_matrix <-  as.matrix(spam_mdsHR$confdist)
+denominator <-  sum(dhat_matrix[upper.tri(dhat_matrix)]^2)
+p_ij <-  dhat_matrix[upper.tri(dhat_matrix)]
+d_ij <-  d_matrix[upper.tri(d_matrix)]
+nominator <-  sum((p_ij - d_ij)^2) 
+normalized_stressHR  <-  nominator/denominator
+normalized_stressHR #the normalized stress value = .003
+
+# STATISTIC FOR ASSESSING BORED OUTLIER
+checkingoutliers <- as.data.frame(spam_mdsLR$conf)
+#get Z-value for the D2 variables.
+checkingoutliers$z_scores <- (checkingoutliers$D2-mean(checkingoutliers$D2))/sd(checkingoutliers$D2)
+
+checkingoutliers <- as.data.frame(spam_mdsHR$conf)
+#get Z-value for the D2 variables.
+checkingoutliers$z_scores <- (checkingoutliers$D2-mean(checkingoutliers$D2))/sd(checkingoutliers$D2)
+
+#Group plots by risk status
+plot(spam_mdsLR)
+plot(spam_mdsHR)
+#Low risk
+LRplot <- ggplot() + geom_point(data = as.data.frame(spam_mdsLR$conf), 
+                      mapping = aes(x = D1 , y = D2), 
+                      alpha = 0.5 , color = "blue", size = 3) + 
+  geom_text_repel(data = as.data.frame(spam_mdsLR$conf), 
+            mapping = aes(x = D1,y= D2), 
+            label = rownames(AvgMatrixLoRisk)) + 
+  labs(title = "MDS representation of Emotion: Low Risk Group") + xlab("Dimension 1") + ylab ("Dimension 2") +
+  theme_classic()
+    ggsave(file="LRplotEMO.jpg", width=8, height=8, plot=LRplot, path = "~/Desktop/Projects/Data/Myriad1B/")
+#At risk
+HRplot <- ggplot() + geom_point(data = as.data.frame(spam_mdsHR$conf), 
+                      mapping = aes(x = D1 , y = D2), 
+                      alpha = 0.5 , color = "blue", size = 3) + 
+  geom_text_repel(data = as.data.frame(spam_mdsHR$conf), 
+            mapping = aes(x = D1,y= D2), 
+            label = rownames(AvgMatrixHiRisk)) + 
+  labs(title = "MDS representation of Emotion: At Risk Group") + xlab("Dimension 1") + ylab ("Dimension 2") +
+  theme_classic() +
+  scale_y_continuous(limits = c(-.5, .4)) #make same as low risk plot Y (X is already same)
+    ggsave(file="HRplotEMO.jpg",  width=8, height=8, plot=HRplot, path = "~/Desktop/Projects/Data/Myriad1B/")
+    
+#compare spread of both dimensions.
+LRscores <- as.data.frame(spam_mdsLR$conf)
+mean(LRscores$D1)
+sd(LRscores$D1)
+mean(LRscores$D2)
+sd(LRscores$D2)
+
+HRscores <- as.data.frame(spam_mdsHR$conf)
+mean(HRscores$D1)
+sd(HRscores$D1)
+mean(HRscores$D2)
+sd(HRscores$D2)
+
+#t test for mean differences
+t.test(LRscores$D1, HRscores$D1)
+#t = -2.6686e-16, df = 59.955, p-value = 1
+t.test(LRscores$D2, HRscores$D2)
+#t = -4.859e-15, df = 49.249, p-value = 1
+
+#-test of two variances
+var.test(LRscores$D1, HRscores$D1)
+var.test(LRscores$D2, HRscores$D2)
+
+LRscores$Group <- "LowRisk"
+HRscores$Group <- "AtRisk"
+
+LRHR <- rbind(LRscores, HRscores)
+#plot the spread
+#boxplot(D2 ~ Group, data = LRHR)
+ggplot(LRHR, aes(x=Group, y=D1, fill=Group)) + geom_boxplot() + ggtitle("Spread of Dimension 1 between Groups") +
+  theme_classic()
+ggplot(LRHR, aes(x=Group, y=D2, fill=Group)) + geom_boxplot() + ggtitle("Spread of Dimension 2 between Groups") +
+  theme_classic()
+
+#within-groups variance of dimensions
+var.test(LRscores$D1, LRscores$D2)
+var.test(HRscores$D1, HRscores$D2)
+```
+
+#Clustering, Cuts
+```{r}
+library(stats)
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+mdsLR <- spam_mdsLR$conf
+mdsHR <- spam_mdsHR$conf
+
+# Determine number of clusters
+wss <- (nrow(mdsLR)-1)*sum(apply(mdsLR,2,var))
+for (i in 2:15) wss[i] <- sum(kmeans(mdsLR,
+   centers=i)$withinss)
+plot(1:15, wss, type="b", xlab="Number of Clusters",
+  ylab="Within groups sum of squares", main ="Low Risk Group") #strongly 2
+
+wss <- (nrow(mdsHR)-1)*sum(apply(mdsHR,2,var))
+for (i in 2:15) wss[i] <- sum(kmeans(mdsHR,
+   centers=i)$withinss)
+plot(1:15, wss, type="b", xlab="Number of Clusters",
+  ylab="Within groups sum of squares", main ="At Risk Group") #also strongly 2
+
+# Ward Hierarchical Clustering
+d <- dist(mdsLR, method = "euclidean") # distance matrix
+fit <- hclust(d, method="ward.D")
+plot(fit) # display dendogram
+groups <- cutree(fit, k=4) # cut tree into N clusters
+# draw dendogram with red borders around the N clusters
+rect.hclust(fit, k=2, border="blue")
+rect.hclust(fit, k=4, border="red")
+
+d <- dist(mdsHR, method = "euclidean")
+fit <- hclust(d, method="ward.D")
+plot(fit)
+groups <- cutree(fit, k=4)
+rect.hclust(fit, k=2, border="blue")
+rect.hclust(fit, k=4, border="red")
+```
+
+##################################################
+##    EMOTION TERMS, WITHOUT 'BORED' OUTLIER    ##
+##################################################
+
+#data setup
+```{r}
+distance <- read.table("~/ownCloud/PhD/Projects/Data/Myriad1B/spam_emotion/spam_emotion_merge.txt", sep = "\t", header = TRUE) #must delete first line of C: saving location in txt file
+short <- c("Subject", "Comp1", "Comp2", "Distance")
+distance <- distance[short]
+distance <- na.omit(distance)
+sapply(distance, class)
+distance$Subject <- as.factor(distance$Subject)
+distance$Comp1 <- as.factor(distance$Comp1)
+distance$Comp2 <- as.factor(distance$Comp2)
+
+posSPAMmood <- c("CALM", "CAREFREE", "CHEERFUL", "COMPOSED", "CONTENT", "EXCITED", "HAPPY", "JOYFUL", "LIVELY", "MANIC", "OPTIMISTIC", "PASSIONATE", "RELAXED", "SATISFIED", "SERENE")
+negSPAMmood <- c("ANXIOUS", "BITTER", "BORED",  "DEPRESSED", "DESPERATE", "FED UP", "GLOOMY", "GUILTY", "IRRITABLE", "MISERABLE", "PANICKY", "PESSIMISTIC", "SAD", "STRESSED", "TENSE", "UNEASY")
+distance <- distance %>% 
+  rename_with(.cols = 1, ~"PtcptID")
+distancetest <- merge(distance, test0dem[,c(1,6)], by= "PtcptID")
+distancetest$termpairs <- paste(distancetest$Comp1, distancetest$Comp2, sep= "-")
+
+    # REMOVE BORED (outlier term)
+distancetest <- distancetest[!grepl("BORED", distancetest$Comp1),]
+distancetest <- distancetest[!grepl("BORED", distancetest$Comp2),]
+```
+
+# Loops for individual matrices, individual configuration plots
+```{r}
+library(data.table)
+library(dplyr)
+library(reshape2)
+library(smacof)
+library(magrittr)
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+library(ggrepel)
+
+rownames(distancetest) <- 1:nrow(distancetest)
+
+# INDIVIDUAL MATRIX CREATION LOOP
+for(i in levels(test0dem$PtcptID)) {
+    #single out an individual participant
+    matrixloop1 <- distancetest[distancetest$PtcptID == i,]
+    an <- with(matrixloop1[,2:4], sort(unique(c(as.character(Comp1), as.character(Comp2)))))
+    SpamMatrixtemp <- array(0, c(length(an), length(an)), list(an, an))
+    a <- match(matrixloop1[,2:4]$Comp1, an)
+    b <- match(matrixloop1[,2:4]$Comp2, an)
+    SpamMatrixtemp[cbind(a,b)] <- SpamMatrixtemp[cbind(b,a)] <- matrixloop1[,2:4]$Distance
+    #save all files in Imp folder for use at individual level
+    savefile <- paste0 ("~/ownCloud/PhD/Projects/Data/Myriad1B/indivmatricesEMO/", i, ".csv", sep = "")
+    write.csv(SpamMatrixtemp, file = savefile, row.names = TRUE)
+    #print output into console to see status
+    print(paste("Dataframe Saved:", i))
+    #save outputs to location with unique name match.
+}
+
+# INDIVIDUAL GGSCATTER CONFIGURATION PLOT CREATION LOOP
+for(i in levels(test0dem$PtcptID)) {
+    #single out an individual participant
+    matrixloop1 <- distancetest[distancetest$PtcptID == i,]
+    an <- with(matrixloop1[,2:4], sort(unique(c(as.character(Comp1), as.character(Comp2)))))
+    SpamMatrixtemp <- array(0, c(length(an), length(an)), list(an, an))
+    a <- match(matrixloop1[,2:4]$Comp1, an)
+    b <- match(matrixloop1[,2:4]$Comp2, an)
+    SpamMatrixtemp[cbind(a,b)] <- SpamMatrixtemp[cbind(b,a)] <- matrixloop1[,2:4]$Distance
+    #create their mds plot
+    spam_mdstemp <-  mds(delta = SpamMatrixtemp, ndim = 2, type = "ordinal")
+  #simple clean readable config plot
+  plottemp <- ggplot() + geom_point(data = as.data.frame(spam_mdstemp$conf), 
+                      mapping = aes(x = D1 , y = D2), 
+                      alpha = 0.5 , color = "blue", size = 3) + 
+  geom_text_repel(data = as.data.frame(spam_mdstemp$conf), 
+            mapping = aes(x = D1,y= D2), 
+            label = rownames(SpamMatrixtemp)) + 
+  labs(title = "MDS representation of Emotion") + xlab("Dimension 1") + ylab ("Dimension 2") +
+  theme_classic()
+
+    #save all files in Imp folder for use at individual level
+    savefile <- paste0 (i, ".jpg", sep = "")
+    ggsave(file=savefile, plot=plottemp, path = "~/ownCloud/PhD/Projects/Data/Myriad1B/indivmatricesEMO/indivconfigplotsEMO_noBored")
+    #print output into console to see status
+    print(paste("Dataframe Saved:", i))
+    #save outputs to location with unique name match.
+}
+```
+
+# Average Low and At Risk Group analysis of matrices (averaging matrices, stress, plots, variance diff)
+```{r}
+library(data.table)
+library(dplyr)
+library(reshape2)
+library(smacof)
+library(magrittr)
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+library(ggrepel)
+library(stats)
+
+#Average matrices for low and at risk groups by SUBFOLDER OF PRESORTED GROUPS.
+    ## LOW RISK ##
+#pull all the csv files from the subfolder
+filenamesLR <- list.files(path ="~/Desktop/Projects/Data/Myriad1B/indivmatricesEMO/lowrisk_noBored", pattern="*.csv", full.names=TRUE)
+ldfLR <- lapply(filenamesLR, read.csv)
+
+resLR <- lapply(ldfLR, as.matrix)
+
+#make each one have their mood terms as row names via lapply.
+resLR <- lapply(ldfLR, function(df) {
+    #new df without rowname col
+    df_out <- df[,-1]
+    #set rownames as first col from input df
+    rownames(df_out) <- df[[1]]
+    df_out
+})
+#matrix average LOW RISK
+AvgMatrixLoRisk <- Reduce(`+`, resLR)/length(resLR)
+
+    ## AT RISK ##
+filenamesHR <- list.files(path ="~/Desktop/Projects/Data/Myriad1B/indivmatricesEMO/atrisk_noBored", pattern="*.csv", full.names=TRUE)
+ldfHR <- lapply(filenamesHR, read.csv)
+resHR <- lapply(ldfHR, as.matrix)
+#make each one have their mood terms as row names via lapply.
+resHR <- lapply(ldfHR, function(df) {
+    #new df without rowname col
+    df_out <- df[,-1]
+    #set rownames as first col from input df
+    rownames(df_out) <- df[[1]]
+    df_out
+})
+AvgMatrixHiRisk <- Reduce(`+`, resHR)/length(resHR)
+
+#Assess group matrices
+
+#Low Risk
+spam_mdsLR <-  mds(delta = AvgMatrixLoRisk, ndim = 2, type = "ratio" )
+spam_mdsLR
+spam_mdsLR$stress #the stress value = .12
+dhat_matrix <-  as.matrix(spam_mdsLR$dhat)
+d_matrix <-  as.matrix(spam_mdsLR$confdist)
+denominator <-  sum(dhat_matrix[upper.tri(dhat_matrix)]^2)
+p_ij <-  dhat_matrix[upper.tri(dhat_matrix)]
+d_ij <-  d_matrix[upper.tri(d_matrix)]
+nominator <-  sum((p_ij - d_ij)^2) 
+normalized_stressLR  <-  nominator/denominator
+normalized_stressLR #the normalized stress value = .02
+
+#At Risk
+spam_mdsHR <-  mds(delta = AvgMatrixHiRisk, ndim = 2, type = "ratio" )
+spam_mdsHR
+spam_mdsHR$stress #the stress value = .14
+dhat_matrix <-  as.matrix(spam_mdsHR$dhat)
+d_matrix <-  as.matrix(spam_mdsHR$confdist)
+denominator <-  sum(dhat_matrix[upper.tri(dhat_matrix)]^2)
+p_ij <-  dhat_matrix[upper.tri(dhat_matrix)]
+d_ij <-  d_matrix[upper.tri(d_matrix)]
+nominator <-  sum((p_ij - d_ij)^2) 
+normalized_stressHR  <-  nominator/denominator
+normalized_stressHR #the normalized stress value = .02
+
+#compare spread of both dimensions.
+LRscores <- as.data.frame(spam_mdsLR$conf)
+mean(LRscores$D1)
+sd(LRscores$D1)
+mean(LRscores$D2)
+sd(LRscores$D2)
+
+EmoLRscores <- LRscores
+
+HRscores <- as.data.frame(spam_mdsHR$conf)
+mean(HRscores$D1)
+sd(HRscores$D1)
+mean(HRscores$D2)
+sd(HRscores$D2)
+
+EmoHRscores <- HRscores
+
+#Group plots by risk status
+plot(spam_mdsLR)
+plot(spam_mdsHR)
+#Low risk
+LRplot <- ggplot() + geom_point(data = as.data.frame(spam_mdsLR$conf), 
+                      mapping = aes(x = D1 , y = D2), 
+                      alpha = 0.5 , color = "blue", size = 3) + 
+  geom_text_repel(data = as.data.frame(spam_mdsLR$conf), 
+            mapping = aes(x = D1,y= D2), 
+            label = rownames(AvgMatrixLoRisk)) + 
+  labs(title = "MDS representation of Emotion: Low Risk Group") + xlab("Dimension 1") + ylab ("Dimension 2") +
+  theme_classic()
+    ggsave(file="LRplotEMOnoBoredRatio.jpg", width=8, height=8, plot=LRplot, path = "~/Desktop/Projects/Data/Myriad1B/")
+#At risk
+HRplot <- ggplot() + geom_point(data = as.data.frame(spam_mdsHR$conf), 
+                      mapping = aes(x = D1 , y = D2), 
+                      alpha = 0.5 , color = "blue", size = 3) + 
+  geom_text_repel(data = as.data.frame(spam_mdsHR$conf), 
+            mapping = aes(x = D1,y= D2), 
+            label = rownames(AvgMatrixHiRisk)) + 
+  labs(title = "MDS representation of Emotion: At Risk Group") + xlab("Dimension 1") + ylab ("Dimension 2") +
+  theme_classic() +
+  scale_y_continuous(limits = c(-.5, .4)) #make same as low risk plot Y (X is already same)
+    ggsave(file="HRplotEMOnoBoredRatio.jpg", width=8, height=8, plot=HRplot, path = "~/Desktop/Projects/Data/Myriad1B/")
+
+#t test for mean differences
+t.test(LRscores$D1, HRscores$D1)
+#t = -2.6686e-16, df = 59.955, p-value = 1
+t.test(LRscores$D2, HRscores$D2)
+#t = -4.859e-15, df = 49.249, p-value = 1
+
+#𝐹-test of two variances.
+var.test(LRscores$D1, HRscores$D1)
+var.test(LRscores$D2, HRscores$D2)
+
+LRscores$Group <- "LowRisk"
+HRscores$Group <- "AtRisk"
+
+LRHR <- rbind(LRscores, HRscores)
+#plot the spread
+#boxplot(D2 ~ Group, data = LRHR)
+ggplot(LRHR, aes(x=Group, y=D1, fill=Group)) + geom_boxplot() + ggtitle("Spread of Dimension 1 between Groups") +
+  theme_classic()
+ggplot(LRHR, aes(x=Group, y=D2, fill=Group)) + geom_boxplot() + ggtitle("Spread of Dimension 2 between Groups") +
+  theme_classic()
+
+#within-groups variance of dimensions
+var.test(LRscores$D1, LRscores$D2)
+var.test(HRscores$D1, HRscores$D2)
+```
+
+#Clustering, Cuts
+```{r}
+library(stats)
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+mdsLR <- spam_mdsLR$conf
+mdsHR <- spam_mdsHR$conf
+
+# Determine number of clusters
+wss <- (nrow(mdsLR)-1)*sum(apply(mdsLR,2,var))
+for (i in 2:15) wss[i] <- sum(kmeans(mdsLR,
+   centers=i)$withinss)
+plot(1:15, wss, type="b", xlab="Number of Clusters",
+  ylab="Within groups sum of squares", main ="Low Risk Group") #strongly 2
+
+wss <- (nrow(mdsHR)-1)*sum(apply(mdsHR,2,var))
+for (i in 2:15) wss[i] <- sum(kmeans(mdsHR,
+   centers=i)$withinss)
+plot(1:15, wss, type="b", xlab="Number of Clusters",
+  ylab="Within groups sum of squares", main ="At Risk Group") #also strongly 2
+
+# Ward Hierarchical Clustering
+d <- dist(mdsLR, method = "euclidean") # distance matrix
+fit <- hclust(d, method="ward.D")
+plot(fit) # display dendogram
+groups <- cutree(fit, k=4) # cut tree into N clusters
+# draw dendogram with red borders around the N clusters
+rect.hclust(fit, k=2, border="blue")
+rect.hclust(fit, k=4, border="red")
+
+d <- dist(mdsHR, method = "euclidean")
+fit <- hclust(d, method="ward.D")
+plot(fit)
+groups <- cutree(fit, k=4)
+rect.hclust(fit, k=2, border="blue")
+rect.hclust(fit, k=4, border="red")
+```
+
+##################################################
+##                ALL MOOD TERMS                ##
+##################################################
+
+#data setup
+```{r}
+library(tidyverse)
+
+distance <- read.table("~/Data/spammood75merge.txt", sep = "\t", header = TRUE)
+short <- c("Subject", "Comp1", "Comp2", "Distance")
+distance <- distance[short]
+distance <- na.omit(distance)
+sapply(distance, class)
+distance$Subject <- as.factor(distance$Subject)
+distance$Comp1 <- as.factor(distance$Comp1)
+distance$Comp2 <- as.factor(distance$Comp2)
+
+levels(distance$Comp2)
+posSPAMmood <- c("CALM", "CAREFREE", "CHEERFUL", "COMPOSED", "CONTENT", "EXCITED", "HAPPY", "JOYFUL", "LIVELY", "MANIC", "OPTIMISTIC", "PASSIONATE", "RELAXED", "SATISFIED", "SERENE")
+negSPAMmood <- c("ANXIOUS", "BITTER", "BORED",  "DEPRESSED", "DESPERATE", "FED UP", "GLOOMY", "GUILTY", "IRRITABLE", "MISERABLE", "PANICKY", "PESSIMISTIC", "SAD", "STRESSED", "TENSE", "UNEASY")
+
+distance <- distance %>% 
+  rename_with(.cols = 1, ~"PtcptID")
+distancetest$termpairs <- paste(distancetest$Comp1, distancetest$Comp2, sep= "-")
+```
+
+# Loops for individual matrices, individual configuration plot
+```{r}
+library(data.table)
+library(dplyr)
+library(reshape2)
+library(smacof)
+library(magrittr)
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+
+rownames(distancetest) <- 1:nrow(distancetest)
+
+# INDIVIDUAL MATRIX CREATION LOOP
+for(i in levels(test0dem$PtcptID)) {
+    #single out an individual participant
+    matrixloop1 <- distancetest[distancetest$PtcptID == i,]
+    an <- with(matrixloop1[,2:4], sort(unique(c(as.character(Comp1), as.character(Comp2)))))
+    SpamMatrixtemp <- array(0, c(length(an), length(an)), list(an, an))
+    a <- match(matrixloop1[,2:4]$Comp1, an)
+    b <- match(matrixloop1[,2:4]$Comp2, an)
+    SpamMatrixtemp[cbind(a,b)] <- SpamMatrixtemp[cbind(b,a)] <- matrixloop1[,2:4]$Distance
+    #save all files in Imp folder for use at individual level
+    savefile <- paste0 ("~/Desktop/Projects/Data/Myriad1B/indivmatrices/", i, ".csv", sep = "")
+    write.csv(SpamMatrixtemp, file = savefile, row.names = TRUE)
+    #print output into console to see status
+    print(paste("Dataframe Saved:", i))
+    #save outputs to location with unique name match.
+}
+
+# INDIVIDUAL GGSCATTER CONFIGURATION PLOT CREATION LOOP
+for(i in levels(test0dem$PtcptID)) {
+    #single out an individual participant
+    matrixloop1 <- distancetest[distancetest$PtcptID == i,]
+    an <- with(matrixloop1[,2:4], sort(unique(c(as.character(Comp1), as.character(Comp2)))))
+    SpamMatrixtemp <- array(0, c(length(an), length(an)), list(an, an))
+    a <- match(matrixloop1[,2:4]$Comp1, an)
+    b <- match(matrixloop1[,2:4]$Comp2, an)
+    SpamMatrixtemp[cbind(a,b)] <- SpamMatrixtemp[cbind(b,a)] <- matrixloop1[,2:4]$Distance
+    #create their mds plot
+    spam_mdstemp <-  mds(delta = SpamMatrixtemp, ndim = 2, type = "ordinal")
+  #simple clean readable config plot
+  plottemp <- ggplot() + geom_point(data = as.data.frame(spam_mdstemp$conf), 
+                      mapping = aes(x = D1 , y = D2), 
+                      alpha = 0.5 , color = "blue", size = 3) + 
+  geom_text_repel(data = as.data.frame(spam_mdstemp$conf), 
+            mapping = aes(x = D1,y= D2), 
+            label = rownames(SpamMatrixtemp)) + 
+  labs(title = "MDS representation of Mood") + xlab("Dimension 1") + ylab ("Dimension 2") +
+  theme_classic()
+
+    #save all files in Imp folder for use at individual level
+    savefile <- paste0 (i, ".jpg", sep = "")
+    ggsave(file=savefile, plot=plottemp, path = "~/Desktop/Projects/Data/Myriad1B/indivmatrices/indivconfigplots/")
+    #print output into console to see status
+    print(paste("Dataframe Saved:", i))
+    #save outputs to location with unique name match.
+}
+```
+
+# Average Low and At Risk Group analysis of matrices (averaging matrices, stress, plots, variance diff)
+```{r}
+library(data.table)
+library(dplyr)
+library(reshape2)
+library(smacof)
+library(magrittr)
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+library(ggrepel)
+library(stats)
+
+#Average matrices for low and at risk groups by SUBFOLDER OF PRESORTED GROUPS.
+    ## LOW RISK ##
+#pull all the csv files from the subfolder
+filenamesLR <- list.files(path ="~/Desktop/Projects/Data/Myriad1B/indivmatrices/lowrisk", pattern="*.csv", full.names=TRUE)
+ldfLR <- lapply(filenamesLR, read.csv)
+resLR <- lapply(ldfLR, as.matrix)
+#make each one have their mood terms as row names via lapply.
+resLR <- lapply(ldfLR, function(df) {
+    #new df without rowname col
+    df_out <- df[,-1]
+    #set rownames as first col from input df
+    rownames(df_out) <- df[[1]]
+    df_out
+})
+#matrix average LOW RISK
+AvgMatrixLoRisk <- Reduce(`+`, resLR)/length(resLR)
+
+    ## AT RISK ##
+filenamesHR <- list.files(path ="~/Desktop/Projects/Data/Myriad1B/indivmatrices/athrisk", pattern="*.csv", full.names=TRUE)
+ldfHR <- lapply(filenamesHR, read.csv)
+resHR <- lapply(ldfHR, as.matrix)
+#make each one have their mood terms as row names via lapply.
+resHR <- lapply(ldfHR, function(df) {
+    #new df without rowname col
+    df_out <- df[,-1]
+    #set rownames as first col from input df
+    rownames(df_out) <- df[[1]]
+    df_out
+})
+AvgMatrixHiRisk <- Reduce(`+`, resHR)/length(resHR)
+
+#Assess group matrices 
+#analyze configuration plots, stress values, normalized stress, and k-means clustering of outputs.
+
+#Low Risk
+spam_mdsLR <-  mds(delta = AvgMatrixLoRisk, ndim = 2, type = "ordinal" )
+spam_mdsLR
+spam_mdsLR$stress #the stress value = .07 GOOD
+dhat_matrix <-  as.matrix(spam_mdsLR$dhat)
+d_matrix <-  as.matrix(spam_mdsLR$confdist)
+denominator <-  sum(dhat_matrix[upper.tri(dhat_matrix)]^2)
+p_ij <-  dhat_matrix[upper.tri(dhat_matrix)]
+d_ij <-  d_matrix[upper.tri(d_matrix)]
+nominator <-  sum((p_ij - d_ij)^2) 
+normalized_stressLR  <-  nominator/denominator
+normalized_stressLR #the normalized stress value = .005
+
+#At Risk
+spam_mdsHR <-  mds(delta = AvgMatrixHiRisk, ndim = 2, type = "ordinal" )
+spam_mdsHR
+spam_mdsHR$stress #the stress value = .05 GOOD
+dhat_matrix <-  as.matrix(spam_mdsHR$dhat)
+d_matrix <-  as.matrix(spam_mdsHR$confdist)
+denominator <-  sum(dhat_matrix[upper.tri(dhat_matrix)]^2)
+p_ij <-  dhat_matrix[upper.tri(dhat_matrix)]
+d_ij <-  d_matrix[upper.tri(d_matrix)]
+nominator <-  sum((p_ij - d_ij)^2) 
+normalized_stressHR  <-  nominator/denominator
+normalized_stressHR #the normalized stress value = .002
+
+# STATISTIC FOR CONFIRMING BORED OUTLIER
+checkingoutliers <- as.data.frame(spam_mdsLR$conf)
+#get Z-value for the D2 variables.
+checkingoutliers$z_scores <- (checkingoutliers$D2-mean(checkingoutliers$D2))/sd(checkingoutliers$D2)
+z_scores
+
+checkingoutliers <- as.data.frame(spam_mdsHR$conf)
+#get Z-value for the D2 variables.
+checkingoutliers$z_scores <- (checkingoutliers$D2-mean(checkingoutliers$D2))/sd(checkingoutliers$D2)
+z_scores
+
+
+#Group plots by risk status
+plot(spam_mdsLR)
+plot(spam_mdsHR)
+#Low risk
+LRplot <- ggplot() + geom_point(data = as.data.frame(spam_mdsLR$conf), 
+                      mapping = aes(x = D1 , y = D2), 
+                      alpha = 0.5 , color = "blue", size = 3) + 
+  geom_text_repel(data = as.data.frame(spam_mdsLR$conf), 
+            mapping = aes(x = D1,y= D2), 
+            label = rownames(AvgMatrixLoRisk)) + 
+  labs(title = "MDS representation of Mood: Low Risk Group") + xlab("Dimension 1") + ylab ("Dimension 2") +
+  theme_classic()
+    ggsave(file="LRplot.jpg", plot=LRplot, path = "~/Desktop/Projects/Data/Myriad1B/")
+#At risk
+HRplot <- ggplot() + geom_point(data = as.data.frame(spam_mdsHR$conf), 
+                      mapping = aes(x = D1 , y = D2), 
+                      alpha = 0.5 , color = "blue", size = 3) + 
+  geom_text_repel(data = as.data.frame(spam_mdsHR$conf), 
+            mapping = aes(x = D1,y= D2), 
+            label = rownames(AvgMatrixHiRisk)) + 
+  labs(title = "MDS representation of Mood: At Risk Group") + xlab("Dimension 1") + ylab ("Dimension 2") +
+  theme_classic() +
+  scale_y_continuous(limits = c(-.5, .4)) #make same as low risk plot Y (X is already same)
+    ggsave(file="HRplot.jpg", plot=HRplot, path = "~/Desktop/Projects/Data/Myriad1B/")
+    
+#compare spread of both dimensions.
+LRscores <- as.data.frame(spam_mdsLR$conf)
+mean(LRscores$D1)
+sd(LRscores$D1)
+mean(LRscores$D2)
+sd(LRscores$D2)
+
+HRscores <- as.data.frame(spam_mdsHR$conf)
+mean(HRscores$D1)
+sd(HRscores$D1)
+mean(HRscores$D2)
+sd(HRscores$D2)
+
+#t test for mean differences
+t.test(LRscores$D1, HRscores$D1)
+#t = -2.6686e-16, df = 59.955, p-value = 1
+t.test(LRscores$D2, HRscores$D2)
+#t = -4.859e-15, df = 49.249, p-value = 1
+
+#𝐹-test of two variances
+var.test(LRscores$D1, HRscores$D1)
+var.test(LRscores$D2, HRscores$D2)
+
+LRscores$Group <- "LowRisk"
+HRscores$Group <- "AtRisk"
+
+LRHR <- rbind(LRscores, HRscores)
+#plot the spread
+#boxplot(D2 ~ Group, data = LRHR)
+ggplot(LRHR, aes(x=Group, y=D1, fill=Group)) + geom_boxplot() + ggtitle("Spread of Dimension 1 between Groups") +
+  theme_classic()
+ggplot(LRHR, aes(x=Group, y=D2, fill=Group)) + geom_boxplot() + ggtitle("Spread of Dimension 2 between Groups") +
+  theme_classic()
+
+#within-groups variance of dimensions
+var.test(LRscores$D1, LRscores$D2)
+var.test(HRscores$D2, HRscores$D2)
+
+```
+
+#Clustering, Cuts
+```{r}
+library(stats)
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+mdsLR <- spam_mdsLR$conf
+mdsHR <- spam_mdsHR$conf
+
+# Determine number of clusters
+wss <- (nrow(mdsLR)-1)*sum(apply(mdsLR,2,var))
+for (i in 2:15) wss[i] <- sum(kmeans(mdsLR,
+   centers=i)$withinss)
+plot(1:15, wss, type="b", xlab="Number of Clusters",
+  ylab="Within groups sum of squares", main ="Low Risk Group") #strongly 2
+
+wss <- (nrow(mdsHR)-1)*sum(apply(mdsHR,2,var))
+for (i in 2:15) wss[i] <- sum(kmeans(mdsHR,
+   centers=i)$withinss)
+plot(1:15, wss, type="b", xlab="Number of Clusters",
+  ylab="Within groups sum of squares", main ="At Risk Group") #also strongly 2
+
+# Ward Hierarchical Clustering
+d <- dist(mdsLR, method = "euclidean") # distance matrix
+fit <- hclust(d, method="ward")
+plot(fit) # display dendogram
+groups <- cutree(fit, k=4) # cut tree into N clusters
+# draw dendogram with red borders around the N clusters
+rect.hclust(fit, k=2, border="blue")
+rect.hclust(fit, k=4, border="red")
+
+d <- dist(mdsHR, method = "euclidean")
+fit <- hclust(d, method="ward")
+plot(fit)
+groups <- cutree(fit, k=4)
+rect.hclust(fit, k=2, border="blue")
+rect.hclust(fit, k=4, border="red")
+```
+
+##################################################
+##       MOOD TERMS, WITHOUT 'BORED' OUTLIER    ##
+##################################################
+
+#data setup
+```{r}
+library(tidyverse)
+
+distance <- read.table("~/ownCloud/PhD/Projects/Data/Myriad1B/spam_mood/spammood75merge.txt", sep = "\t", header = TRUE) #must delete first line of C: saving location in txt file
+short <- c("Subject", "Comp1", "Comp2", "Distance")
+distance <- distance[short]
+
+distance <- na.omit(distance)
+distance$Subject <- as.factor(distance$Subject)
+distance$Comp1 <- as.factor(distance$Comp1)
+distance$Comp2 <- as.factor(distance$Comp2)
+
+posSPAMmood <- c("CALM", "CAREFREE", "CHEERFUL", "COMPOSED", "CONTENT", "EXCITED", "HAPPY", "JOYFUL", "LIVELY", "MANIC", "OPTIMISTIC", "PASSIONATE", "RELAXED", "SATISFIED", "SERENE")
+negSPAMmood <- c("ANXIOUS", "BITTER", "BORED",  "DEPRESSED", "DESPERATE", "FED UP", "GLOOMY", "GUILTY", "IRRITABLE", "MISERABLE", "PANICKY", "PESSIMISTIC", "SAD", "STRESSED", "TENSE", "UNEASY")
+distance <- distance %>% 
+  rename_with(.cols = 1, ~"PtcptID")
+distancetest$termpairs <- paste(distancetest$Comp1, distancetest$Comp2, sep= "-")
+
+# REMOVE BORED (outlier term)
+distancetest <- distancetest[!grepl("BORED", distancetest$Comp1),]
+distancetest <- distancetest[!grepl("BORED", distancetest$Comp2),]
+```
+
+# Loops for individual matrices, individual configuration plots, stress values (stress WIP)
+```{r}
+library(data.table)
+library(dplyr)
+library(reshape2)
+library(smacof)
+library(magrittr)
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+library(ggrepel)
+
+rownames(distancetest) <- 1:nrow(distancetest)
+
+# INDIVIDUAL MATRIX CREATION LOOP
+for(i in levels(test0dem$PtcptID)) {
+    #single out an individual participant
+    matrixloop1 <- distancetest[distancetest$PtcptID == i,]
+    an <- with(matrixloop1[,2:4], sort(unique(c(as.character(Comp1), as.character(Comp2)))))
+    SpamMatrixtemp <- array(0, c(length(an), length(an)), list(an, an))
+    a <- match(matrixloop1[,2:4]$Comp1, an)
+    b <- match(matrixloop1[,2:4]$Comp2, an)
+    SpamMatrixtemp[cbind(a,b)] <- SpamMatrixtemp[cbind(b,a)] <- matrixloop1[,2:4]$Distance
+    #save all files in Imp folder for use at individual level
+    savefile <- paste0 ("~/ownCloud/PhD/Projects/Data/Myriad1B/indivmatrices/", i, ".csv", sep = "")
+    write.csv(SpamMatrixtemp, file = savefile, row.names = TRUE)
+    #print output into console to see status
+    print(paste("Dataframe Saved:", i))
+    #save outputs to location with unique name match.
+}
+
+# INDIVIDUAL GGSCATTER CONFIGURATION PLOT CREATION LOOP
+for(i in levels(test0dem$PtcptID)) {
+    #single out an individual participant
+    matrixloop1 <- distancetest[distancetest$PtcptID == i,]
+    an <- with(matrixloop1[,2:4], sort(unique(c(as.character(Comp1), as.character(Comp2)))))
+    SpamMatrixtemp <- array(0, c(length(an), length(an)), list(an, an))
+    a <- match(matrixloop1[,2:4]$Comp1, an)
+    b <- match(matrixloop1[,2:4]$Comp2, an)
+    SpamMatrixtemp[cbind(a,b)] <- SpamMatrixtemp[cbind(b,a)] <- matrixloop1[,2:4]$Distance
+    #create their mds plot
+    spam_mdstemp <-  mds(delta = SpamMatrixtemp, ndim = 2, type = "ordinal")
+  #simple clean readable config plot
+  plottemp <- ggplot() + geom_point(data = as.data.frame(spam_mdstemp$conf), 
+                      mapping = aes(x = D1 , y = D2), 
+                      alpha = 0.5 , color = "blue", size = 3) + 
+  geom_text_repel(data = as.data.frame(spam_mdstemp$conf), 
+            mapping = aes(x = D1,y= D2), 
+            label = rownames(SpamMatrixtemp)) + 
+  labs(title = "MDS representation of Mood") + xlab("Dimension 1") + ylab ("Dimension 2") +
+  theme_classic()
+
+    #save all files in Imp folder for use at individual level
+    savefile <- paste0 (i, ".jpg", sep = "")
+    ggsave(file=savefile, plot=plottemp, path = "~/ownCloud/PhD/Projects/Data/Myriad1B/indivmatrices/indivconfigplots_NoBored/")
+    #print output into console to see status
+    print(paste("Dataframe Saved:", i))
+    #save outputs to location with unique name match.
+}
+```
+
+# Average Low and At Risk Group analysis of matrices (averaging matrices, stress, plots, variance diff)
+```{r}
+library(data.table)
+library(dplyr)
+library(reshape2)
+library(smacof)
+library(magrittr)
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+library(ggrepel)
+library(stats)
+
+#Average matrices for low and at risk groups by SUBFOLDER OF PRESORTED GROUPS.
+    ## LOW RISK ##
+#pull all the csv files from the subfolder
+filenamesLR <- list.files(path ="~/Desktop/Projects/Data/Myriad1B/indivmatrices/lowrisk_noBored", pattern="*.csv", full.names=TRUE)
+ldfLR <- lapply(filenamesLR, read.csv)
+resLR <- lapply(ldfLR, as.matrix)
+#make each one have their mood terms as row names via lapply.
+resLR <- lapply(ldfLR, function(df) {
+    #new df without rowname col
+    df_out <- df[,-1]
+    #set rownames as first col from input df
+    rownames(df_out) <- df[[1]]
+    df_out
+})
+#matrix average LOW RISK
+AvgMatrixLoRisk <- Reduce(`+`, resLR)/length(resLR)
+
+    ## AT RISK ##
+filenamesHR <- list.files(path ="~/Desktop/Projects/Data/Myriad1B/indivmatrices/atrisk_noBored", pattern="*.csv", full.names=TRUE)
+ldfHR <- lapply(filenamesHR, read.csv)
+resHR <- lapply(ldfHR, as.matrix)
+#make each one have their mood terms as row names via lapply.
+resHR <- lapply(ldfHR, function(df) {
+    #new df without rowname col
+    df_out <- df[,-1]
+    #set rownames as first col from input df
+    rownames(df_out) <- df[[1]]
+    df_out
+})
+AvgMatrixHiRisk <- Reduce(`+`, resHR)/length(resHR)
+
+#Assess group matrices 
+#analyze configuration plots, stress values, normalized stress, and k-means clustering of outputs.
+
+#Low Risk
+spam_mdsLR <-  mds(delta = AvgMatrixLoRisk, ndim = 2, type = "ratio" )
+spam_mdsLR
+spam_mdsLR$stress #the stress value = .13 GREAT
+dhat_matrix <-  as.matrix(spam_mdsLR$dhat)
+d_matrix <-  as.matrix(spam_mdsLR$confdist)
+denominator <-  sum(dhat_matrix[upper.tri(dhat_matrix)]^2)
+p_ij <-  dhat_matrix[upper.tri(dhat_matrix)]
+d_ij <-  d_matrix[upper.tri(d_matrix)]
+nominator <-  sum((p_ij - d_ij)^2) 
+normalized_stressLR  <-  nominator/denominator
+normalized_stressLR #the normalized stress value = 0.02
+
+#At Risk
+spam_mdsHR <-  mds(delta = AvgMatrixHiRisk, ndim = 2, type = "ratio" )
+spam_mdsHR
+spam_mdsHR$stress #the stress value = .13 GREAT
+dhat_matrix <-  as.matrix(spam_mdsHR$dhat)
+d_matrix <-  as.matrix(spam_mdsHR$confdist)
+denominator <-  sum(dhat_matrix[upper.tri(dhat_matrix)]^2)
+p_ij <-  dhat_matrix[upper.tri(dhat_matrix)]
+d_ij <-  d_matrix[upper.tri(d_matrix)]
+nominator <-  sum((p_ij - d_ij)^2) 
+normalized_stressHR  <-  nominator/denominator
+normalized_stressHR #the normalized stress value = 0.02
+
+#compare spread of both dimensions.
+LRscores <- as.data.frame(spam_mdsLR$conf)
+mean(LRscores$D1)
+sd(LRscores$D1)
+mean(LRscores$D2)
+sd(LRscores$D2)
+
+MoodLRscores <- LRscores
+
+HRscores <- as.data.frame(spam_mdsHR$conf)
+mean(HRscores$D1)
+sd(HRscores$D1)
+mean(HRscores$D2)
+sd(HRscores$D2)
+
+MoodHRscores <- HRscores
+
+#Group plots by risk status
+plot(spam_mdsLR)
+plot(spam_mdsHR)
+#Low risk
+LRplot <- ggplot() + geom_point(data = as.data.frame(spam_mdsLR$conf), 
+                      mapping = aes(x = D1 , y = D2), 
+                      alpha = 0.5 , color = "blue", size = 3) + 
+  geom_text_repel(data = as.data.frame(spam_mdsLR$conf), 
+            mapping = aes(x = D1,y= D2), 
+            label = rownames(AvgMatrixLoRisk)) + 
+  labs(title = "MDS representation of Mood: Low Risk Group") + xlab("Dimension 1") + ylab ("Dimension 2") +
+  theme_classic()
+    ggsave(file="LRplotnoBoredRatio.jpg", plot=LRplot, path = "~/Desktop/Projects/Data/Myriad1B/")
+#At risk
+HRplot <- ggplot() + geom_point(data = as.data.frame(spam_mdsHR$conf), 
+                      mapping = aes(x = D1 , y = D2), 
+                      alpha = 0.5 , color = "blue", size = 3) + 
+  geom_text_repel(data = as.data.frame(spam_mdsHR$conf), 
+            mapping = aes(x = D1,y= D2), 
+            label = rownames(AvgMatrixHiRisk)) + 
+  labs(title = "MDS representation of Mood: At Risk Group") + xlab("Dimension 1") + ylab ("Dimension 2") +
+  theme_classic()
+  #scale_y_continuous(limits = c(-.5, .4)) #make same as low risk plot Y (X is already same)
+    ggsave(file="HRplotnoBoredRatio.jpg", plot=HRplot, path = "~/Desktop/Projects/Data/Myriad1B/")
+
+
+#t test for mean differences
+t.test(LRscores$D1, HRscores$D1)
+#t = -2.6686e-16, df = 59.955, p-value = 1
+t.test(LRscores$D2, HRscores$D2)
+#t = -4.859e-15, df = 49.249, p-value = 1
+
+#𝐹-test of  two variances
+var.test(LRscores$D1, HRscores$D1)
+var.test(LRscores$D2, HRscores$D2)
+
+LRscores$Group <- "LowRisk"
+HRscores$Group <- "AtRisk"
+
+LRHR <- rbind(LRscores, HRscores)
+#plot the spread
+#boxplot(D2 ~ Group, data = LRHR)
+ggplot(LRHR, aes(x=Group, y=D1, fill=Group)) + geom_boxplot() + ggtitle("Spread of Dimension 1 between Groups") +
+  theme_classic()
+ggplot(LRHR, aes(x=Group, y=D2, fill=Group)) + geom_boxplot() + ggtitle("Spread of Dimension 2 between Groups") +
+  theme_classic()
+
+#within-groups variance of dimensions
+var.test(LRscores$D1, LRscores$D2)
+var.test(HRscores$D2, HRscores$D2)
+
+
+# STATISTIC FOR ASSESSING BORED OUTLIER
+checkingoutliers <- as.data.frame(spam_mdsLR$conf)
+#get Z-value for the D2 variables.
+checkingoutliers$z_scores <- (checkingoutliers$D2-mean(checkingoutliers$D2))/sd(checkingoutliers$D2)
+z_scores
+
+checkingoutliers <- as.data.frame(spam_mdsHR$conf)
+#get Z-value for the D2 variables.
+checkingoutliers$z_scores <- (checkingoutliers$D2-mean(checkingoutliers$D2))/sd(checkingoutliers$D2)
+z_scores
+```
+
+#Clustering attempts, difference in groups
+```{r}
+library(stats)
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+mdsLR <- spam_mdsLR$conf
+mdsHR <- spam_mdsHR$conf
+
+# Determine number of clusters
+wss <- (nrow(mdsLR)-1)*sum(apply(mdsLR,2,var))
+for (i in 2:15) wss[i] <- sum(kmeans(mdsLR,
+   centers=i)$withinss)
+plot(1:15, wss, type="b", xlab="Number of Clusters",
+  ylab="Within groups sum of squares", main ="Low Risk Group") #strongly 2
+
+wss <- (nrow(mdsHR)-1)*sum(apply(mdsHR,2,var))
+for (i in 2:15) wss[i] <- sum(kmeans(mdsHR,
+   centers=i)$withinss)
+plot(1:15, wss, type="b", xlab="Number of Clusters",
+  ylab="Within groups sum of squares", main ="At Risk Group") #also strongly 2
+
+# Ward Hierarchical Clustering
+d <- dist(mdsLR, method = "euclidean") # distance matrix
+fit <- hclust(d, method="ward")
+plot(fit) # display dendogram
+groups <- cutree(fit, k=4) # cut tree into N clusters
+# draw dendogram with red borders around the N clusters
+rect.hclust(fit, k=2, border="blue")
+rect.hclust(fit, k=4, border="red")
+
+d <- dist(mdsHR, method = "euclidean")
+fit <- hclust(d, method="ward")
+plot(fit)
+groups <- cutree(fit, k=4)
+rect.hclust(fit, k=2, border="blue")
+rect.hclust(fit, k=4, border="red")
+```
